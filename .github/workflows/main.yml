@@ -13,7 +13,7 @@ jobs:
       IMAGE_TAG: latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repo
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -42,7 +42,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 7️⃣ Build and push Docker image
+      # 7️⃣ Build & push Docker image
       - name: Build & Push Docker image
         run: |
           docker build -t $IMAGE_NAME:$IMAGE_TAG .
@@ -58,14 +58,13 @@ jobs:
       - name: Set up kubeconfig
         run: |
           mkdir -p $HOME/.kube
-          cat <<EOF > $HOME/.kube/config
-apiVersion: v1
+          echo "apiVersion: v1
 kind: Config
 clusters:
 - name: minikube
   cluster:
-    server: https://${{ secrets.KUBE_SERVER }}:8443
-    certificate-authority-data: ${{ secrets.KUBE_CA }}
+    server: https://$KUBE_SERVER:8443
+    certificate-authority-data: $KUBE_CA
 contexts:
 - name: minikube
   context:
@@ -75,9 +74,13 @@ current-context: minikube
 users:
 - name: minikube
   user:
-    client-certificate-data: ${{ secrets.KUBE_CLIENT_CERT }}
-    client-key-data: ${{ secrets.KUBE_CLIENT_KEY }}
-EOF
+    client-certificate-data: $KUBE_CLIENT_CERT
+    client-key-data: $KUBE_CLIENT_KEY" > $HOME/.kube/config
+        env:
+          KUBE_SERVER: ${{ secrets.KUBE_SERVER }}
+          KUBE_CA: ${{ secrets.KUBE_CA }}
+          KUBE_CLIENT_CERT: ${{ secrets.KUBE_CLIENT_CERT }}
+          KUBE_CLIENT_KEY: ${{ secrets.KUBE_CLIENT_KEY }}
 
       # 🔟 Deploy to Minikube
       - name: Deploy to Minikube
