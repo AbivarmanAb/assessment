@@ -89,4 +89,4 @@ jobs:
           # Deployment commands run immediately after the config file is written
           echo "Kubeconfig successfully configured. Deploying application..."
           sudo kubectl apply -f manifest.yml --validate=false
-          sudo kubectl rollout status deployment/sample_app
+          
