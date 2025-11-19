@@ -1,56 +1,66 @@
-name: CI/CD Pipeline
+name: Build & Deploy to Kind
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
 
-    env:
-      IMAGE_NAME: abivarmang/sample-app:latest
-
     steps:
-      - name: Checkout Code
+      # 1️⃣ Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
+      # 2️⃣ Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '23'
 
-      - name: Install Dependencies
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: Run Tests
-        run: npm test || echo "No tests defined"
+      # 4️⃣ Run tests
+      - name: Run tests
+        run: npm test || echo "No tests found"
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v2
+      # 5️⃣ Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
+      # 6️⃣ Docker login
+      - name: Docker login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build & Push Docker Image
-        run: |
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+      # 7️⃣ Build Docker image
+      - name: Build Docker image
+        run: docker build -t sample_app:latest .
 
+      # 8️⃣ Set up kind (Kubernetes in Docker)
+      - name: Set up kind
+        uses: engineerd/setup-kind@v0.6.0
+        with:
+          version: v0.20.0
+
+      # 9️⃣ Load image into kind cluster
+      - name: Load image into kind
+        run: kind load docker-image sample_app:latest
+
+      # 🔟 Install kubectl
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'latest'
+          version: 'v1.27.0'
 
-      - name: Configure kubeconfig
+      # 1️⃣1️⃣ Deploy to kind cluster
+      - name: Deploy to kind
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-
-      - name: Deploy to Kubernetes
-        run: |
-           sudo kubectl apply -f manifest.yml --validate=false
-           sudo kubectl rollout status deployment/sample-app
+           sudo kubectl apply -f k8s/manifest.yml
+           sudo kubectl rollout status deployment/sample_app
