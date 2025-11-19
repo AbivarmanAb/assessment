@@ -1,4 +1,4 @@
-name: Build & Deploy to Kind
+name: Build & Deploy to kind
 
 on:
   push:
@@ -8,9 +8,12 @@ on:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: abivarmang/sample_app
+      IMAGE_TAG: latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repo
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -41,26 +44,31 @@ jobs:
 
       # 7️⃣ Build Docker image
       - name: Build Docker image
-        run: docker build -t sample_app:latest .
+        run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
 
-      # 8️⃣ Set up kind (Kubernetes in Docker)
-      - name: Set up kind
-        uses: engineerd/setup-kind@v0.6.0
-        with:
-          version: v0.20.0
+      # 8️⃣ Install kind
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
 
-      # 9️⃣ Load image into kind cluster
-      - name: Load image into kind
-        run: kind load docker-image sample_app:latest
+      # 9️⃣ Create kind cluster
+      - name: Create kind cluster
+        run: kind create cluster --wait 60s
 
-      # 🔟 Install kubectl
+      # 🔟 Load image into kind
+      - name: Load Docker image into kind
+        run: kind load docker-image $IMAGE_NAME:$IMAGE_TAG
+
+      # 1️⃣1️⃣ Install kubectl
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'v1.27.0'
 
-      # 1️⃣1️⃣ Deploy to kind cluster
+      # 1️⃣2️⃣ Deploy to kind
       - name: Deploy to kind
         run: |
-           sudo kubectl apply -f k8s/manifest.yml
-           sudo kubectl rollout status deployment/sample_app
+          kubectl apply -f k8s/manifest.yml
+          kubectl rollout status deployment/sample_app
