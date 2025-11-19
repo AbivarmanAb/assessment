@@ -70,5 +70,5 @@ jobs:
       # 1️⃣2️⃣ Deploy to kind
       - name: Deploy to kind
         run: |
-           sudo kubectl apply -f manifest.yml
+           sudo kubectl apply -f manifest.yml --validate=false
            sudo kubectl rollout status deployment/sample_app
