@@ -50,7 +50,7 @@ jobs:
           clusters:
           - name: minikube
             cluster:
-              server: https://<MINIKUBE_SERVER_IP>:8443
+              server: https://${{secrets.KUBE_SERVER}}:8443
               certificate-authority-data: ${{ secrets.KUBE_CA }}
           contexts:
           - name: minikube
