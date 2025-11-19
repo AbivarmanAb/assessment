@@ -1,4 +1,4 @@
-name: Build & Deploy to kind
+name: Build & Deploy to Minikube (Refined)
 
 on:
   push:
@@ -42,33 +42,41 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 7️⃣ Build Docker image
-      - name: Build Docker image
-        run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
-
-      # 8️⃣ Install kind
-      - name: Install kind
+      # 7️⃣ Build & push Docker image
+      - name: Build & Push Docker image
         run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
-
-      # 9️⃣ Create kind cluster
-      - name: Create kind cluster
-        run: kind create cluster --wait 60s
-
-      # 🔟 Load image into kind
-      - name: Load Docker image into kind
-        run: kind load docker-image $IMAGE_NAME:$IMAGE_TAG
-
-      # 1️⃣1️⃣ Install kubectl
-      - name: Set up kubectl
+          docker build -t $IMAGE_NAME:$IMAGE_TAG .
+          docker push $IMAGE_NAME:$IMAGE_TAG
+      
+      # 8️⃣ Configure kubectl & Deploy
+      # Combines steps 8, 9, and 10 into one action block for clarity and safety.
+      - name: Configure kubectl and Deploy to Remote Cluster
         uses: azure/setup-kubectl@v3
         with:
           version: 'v1.27.0'
-
-      # 1️⃣2️⃣ Deploy to kind
-      - name: Deploy to kind
+          # Pass the full Kubeconfig content from secrets to the action
+          kubeconfig: |
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - name: minikube
+              cluster:
+                server: https://${{ secrets.KUBE_SERVER }}:8443
+                certificate-authority-data: ${{ secrets.KUBE_CA }}
+            contexts:
+            - name: minikube
+              context:
+                cluster: minikube
+                user: minikube
+            current-context: minikube
+            users:
+            - name: minikube
+              user:
+                client-certificate-data: ${{ secrets.KUBE_CLIENT_CERT }}
+                client-key-data: ${{ secrets.KUBE_CLIENT_KEY }}
+        
+        # Deployment commands run inside the same step
+      - name: Execute Deployment
         run: |
-           sudo kubectl apply -f manifest.yml --validate=false
+           sudo kubectl apply -f k8s/manifest.yml --validate=false
            sudo kubectl rollout status deployment/sample_app
