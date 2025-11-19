@@ -31,62 +31,40 @@ jobs:
       - name: Run tests
         run: npm test || echo "No tests found"
 
-      # 5️⃣ Set up Docker Buildx
+      # 5️⃣ Set up Minikube cluster
+      - name: Set up Minikube
+        uses: medyagh/setup-minikube@master
+        with:
+          driver: docker
+          kubernetes-version: 'v1.27.0'
+
+      # 6️⃣ Wait for cluster to be ready
+      - name: Wait for cluster readiness
+        run: |
+          minikube status
+          kubectl wait --for=condition=Ready node/minikube --timeout=180s
+          kubectl get nodes
+
+      # 7️⃣ Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 6️⃣ Docker login
+      # 8️⃣ Docker login
       - name: Docker login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 7️⃣ Build & push Docker image
+      # 9️⃣ Build & push Docker image
       - name: Build & Push Docker image
         run: |
           docker build -t $IMAGE_NAME:$IMAGE_TAG .
           docker push $IMAGE_NAME:$IMAGE_TAG
       
-      # 8️⃣ Install kubectl binary
-      # We keep this step separate to ensure the kubectl binary is correctly installed/versioned.
-      - name: Install kubectl binary
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'v1.27.0'
-        
-      # 9️⃣ Configure Kubeconfig and Deploy
-      # The configuration (writing the file) and deployment (kubectl apply) MUST occur 
-      # within the SAME 'run' block to guarantee persistence and prevent 'connection refused' errors.
-      - name: Configure Kubeconfig and Deploy
-        env:
-          KUBE_SERVER: ${{ secrets.KUBE_SERVER }}
-          KUBE_CA: ${{ secrets.KUBE_CA }}
-          KUBE_CLIENT_CERT: ${{ secrets.KUBE_CLIENT_CERT }}
-          KUBE_CLIENT_KEY: ${{ secrets.KUBE_CLIENT_KEY }}
+      # 🔟 Deploy to Minikube
+      - name: Deploy to Minikube
         run: |
-          echo "Writing Kubeconfig file to $HOME/.kube/config"
-          mkdir -p $HOME/.kube
-          echo "apiVersion: v1
-          kind: Config
-          clusters:
-          - name: minikube
-            cluster:
-              server: https://$KUBE_SERVER:8443
-              certificate-authority-data: $KUBE_CA
-          contexts:
-          - name: minikube
-            context:
-              cluster: minikube
-              user: minikube
-          current-context: minikube
-          users:
-          - name: minikube
-            user:
-              client-certificate-data: $KUBE_CLIENT_CERT
-              client-key-data: $KUBE_CLIENT_KEY" > $HOME/.kube/config
-          
-          # Deployment commands run immediately after the config file is written
-          echo "Kubeconfig successfully configured. Deploying application..."
-          sudo kubectl apply -f manifest.yml --validate=false
-          
+          echo "Deploying application to Minikube..."
+          kubectl apply -f manifest.yml
+          kubectl get all
