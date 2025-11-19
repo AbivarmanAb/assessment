@@ -52,5 +52,5 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-           kubectl apply -f manifest.yml --validate=false
+           sudo kubectl apply -f manifest.yml --validate=false
            sudo kubectl rollout status deployment/sample-app
