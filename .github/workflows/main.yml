@@ -78,5 +78,5 @@ jobs:
         # Deployment commands run inside the same step
       - name: Execute Deployment
         run: |
-           sudo kubectl apply -f k8s/manifest.yml --validate=false
+           sudo kubectl apply -f manifest.yml --validate=false
            sudo kubectl rollout status deployment/sample_app
