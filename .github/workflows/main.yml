@@ -13,58 +13,73 @@ jobs:
       IMAGE_TAG: latest
 
     steps:
-      - name: Checkout repo
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '23'
 
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm install
 
+      # 4️⃣ Run tests
       - name: Run tests
         run: npm test || echo "No tests found"
 
+      # 5️⃣ Set up Docker Buildx
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      # 6️⃣ Log in to Docker Hub
+      - name: Docker login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # 7️⃣ Build & push Docker image
       - name: Build and push Docker image
         run: |
           docker build -t $IMAGE_NAME:$IMAGE_TAG .
           docker push $IMAGE_NAME:$IMAGE_TAG
 
-      - name: Set up kubeconfig for Minikube
+      # 8️⃣ Install kubectl
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.27.0'
+
+      # 9️⃣ Configure kubeconfig for Minikube
+      - name: Set up kubeconfig
         run: |
           mkdir -p $HOME/.kube
-          echo "
-          apiVersion: v1
-          kind: Config
-          clusters:
-          - name: minikube
-            cluster:
-              server: https://${{secrets.KUBE_SERVER}}:8443
-              certificate-authority-data: ${{ secrets.KUBE_CA }}
-          contexts:
-          - name: minikube
-            context:
-              cluster: minikube
-              user: minikube
-          current-context: minikube
-          users:
-          - name: minikube
-            user:
-              client-certificate-data: ${{ secrets.KUBE_CLIENT_CERT }}
-              client-key-data: ${{ secrets.KUBE_CLIENT_KEY }}
-          " > $HOME/.kube/config
+          cat <<EOF > $HOME/.kube/config
+apiVersion: v1
+kind: Config
+clusters:
+- name: minikube
+  cluster:
+    server: https://${{ secrets.KUBE_SERVER }}:8443
+    certificate-authority-data: ${{ secrets.KUBE_CA }}
+contexts:
+- name: minikube
+  context:
+    cluster: minikube
+    user: minikube
+current-context: minikube
+users:
+- name: minikube
+  user:
+    client-certificate-data: ${{ secrets.KUBE_CLIENT_CERT }}
+    client-key-data: ${{ secrets.KUBE_CLIENT_KEY }}
+EOF
 
+      # 🔟 Deploy to Minikube
       - name: Deploy to Minikube
         run: |
           kubectl apply -f k8s/manifest.yml
