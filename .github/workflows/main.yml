@@ -70,5 +70,5 @@ jobs:
       # 1️⃣2️⃣ Deploy to kind
       - name: Deploy to kind
         run: |
-          kubectl apply -f k8s/manifest.yml
-          kubectl rollout status deployment/sample_app
+           sudo kubectl apply -f k8s/manifest.yml
+           sudo kubectl rollout status deployment/sample_app
