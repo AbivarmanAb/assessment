@@ -31,12 +31,12 @@ jobs:
       - name: Run tests
         run: npm test || echo "No tests found"
 
-      # 5️⃣ Set up Minikube cluster
+      # 5️⃣ Set up Minikube cluster (FIXED VERSION)
       - name: Set up Minikube
         uses: medyagh/setup-minikube@master
         with:
           driver: docker
-          kubernetes-version: 'v1.27.0'
+          kubernetes-version: 'v1.28.0'  # Updated to supported version
 
       # 6️⃣ Wait for cluster to be ready
       - name: Wait for cluster readiness
