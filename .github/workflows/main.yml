@@ -13,7 +13,7 @@ jobs:
       IMAGE_TAG: latest
 
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout code
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -56,6 +56,11 @@ jobs:
 
       # 9️⃣ Configure kubeconfig for Minikube
       - name: Set up kubeconfig
+        env:
+          KUBE_SERVER: ${{ secrets.KUBE_SERVER }}
+          KUBE_CA: ${{ secrets.KUBE_CA }}
+          KUBE_CLIENT_CERT: ${{ secrets.KUBE_CLIENT_CERT }}
+          KUBE_CLIENT_KEY: ${{ secrets.KUBE_CLIENT_KEY }}
         run: |
           mkdir -p $HOME/.kube
           echo "apiVersion: v1
@@ -76,11 +81,6 @@ users:
   user:
     client-certificate-data: $KUBE_CLIENT_CERT
     client-key-data: $KUBE_CLIENT_KEY" > $HOME/.kube/config
-        env:
-          KUBE_SERVER: ${{ secrets.KUBE_SERVER }}
-          KUBE_CA: ${{ secrets.KUBE_CA }}
-          KUBE_CLIENT_CERT: ${{ secrets.KUBE_CLIENT_CERT }}
-          KUBE_CLIENT_KEY: ${{ secrets.KUBE_CLIENT_KEY }}
 
       # 🔟 Deploy to Minikube
       - name: Deploy to Minikube
