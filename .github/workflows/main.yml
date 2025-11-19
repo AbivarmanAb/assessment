@@ -48,35 +48,45 @@ jobs:
           docker build -t $IMAGE_NAME:$IMAGE_TAG .
           docker push $IMAGE_NAME:$IMAGE_TAG
       
-      # 8️⃣ Configure kubectl & Deploy
-      # Combines steps 8, 9, and 10 into one action block for clarity and safety.
-      - name: Configure kubectl and Deploy to Remote Cluster
+      # 8️⃣ Install kubectl binary
+      # We keep this step separate to ensure the kubectl binary is correctly installed/versioned.
+      - name: Install kubectl binary
         uses: azure/setup-kubectl@v3
         with:
           version: 'v1.27.0'
-          # Pass the full Kubeconfig content from secrets to the action
-          kubeconfig: |
-            apiVersion: v1
-            kind: Config
-            clusters:
-            - name: minikube
-              cluster:
-                server: https://${{ secrets.KUBE_SERVER }}:8443
-                certificate-authority-data: ${{ secrets.KUBE_CA }}
-            contexts:
-            - name: minikube
-              context:
-                cluster: minikube
-                user: minikube
-            current-context: minikube
-            users:
-            - name: minikube
-              user:
-                client-certificate-data: ${{ secrets.KUBE_CLIENT_CERT }}
-                client-key-data: ${{ secrets.KUBE_CLIENT_KEY }}
         
-        # Deployment commands run inside the same step
-      - name: Execute Deployment
+      # 9️⃣ Configure Kubeconfig and Deploy
+      # The configuration (writing the file) and deployment (kubectl apply) MUST occur 
+      # within the SAME 'run' block to guarantee persistence and prevent 'connection refused' errors.
+      - name: Configure Kubeconfig and Deploy
+        env:
+          KUBE_SERVER: ${{ secrets.KUBE_SERVER }}
+          KUBE_CA: ${{ secrets.KUBE_CA }}
+          KUBE_CLIENT_CERT: ${{ secrets.KUBE_CLIENT_CERT }}
+          KUBE_CLIENT_KEY: ${{ secrets.KUBE_CLIENT_KEY }}
         run: |
-           sudo kubectl apply -f manifest.yml --validate=false
-           sudo kubectl rollout status deployment/sample_app
+          echo "Writing Kubeconfig file to $HOME/.kube/config"
+          mkdir -p $HOME/.kube
+          echo "apiVersion: v1
+          kind: Config
+          clusters:
+          - name: minikube
+            cluster:
+              server: https://$KUBE_SERVER:8443
+              certificate-authority-data: $KUBE_CA
+          contexts:
+          - name: minikube
+            context:
+              cluster: minikube
+              user: minikube
+          current-context: minikube
+          users:
+          - name: minikube
+            user:
+              client-certificate-data: $KUBE_CLIENT_CERT
+              client-key-data: $KUBE_CLIENT_KEY" > $HOME/.kube/config
+          
+          # Deployment commands run immediately after the config file is written
+          echo "Kubeconfig successfully configured. Deploying application..."
+          sudo kubectl apply -f manifest.yml --validate=false
+          sudo kubectl rollout status deployment/sample_app
